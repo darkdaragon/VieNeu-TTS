@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+export PYTHONUNBUFFERED=1
+export HF_HUB_ENABLE_HF_TRANSFER=1
+export GOOGLE_DRIVE_OUTPUT_ROOT=${GOOGLE_DRIVE_OUTPUT_ROOT:-/content/drive/MyDrive/VieNeuTTS_Output}
+export USE_GOOGLE_DRIVE_WHEN_NO_HF=1
+export VIENEU_MODE=${VIENEU_MODE:-fast}
+export VIENEU_BACKBONE_REPO=${VIENEU_BACKBONE_REPO:-pnnbao-ump/VieNeu-TTS-v2}
+export VIENEU_CODEC_REPO=${VIENEU_CODEC_REPO:-neuphonic/distill-neucodec}
+export VIENEU_EMOTION=${VIENEU_EMOTION:-storytelling}
+export VIENEU_ALLOW_GGUF_FALLBACK=${VIENEU_ALLOW_GGUF_FALLBACK:-0}
+python app.py
