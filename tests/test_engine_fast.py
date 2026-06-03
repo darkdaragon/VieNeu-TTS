@@ -39,3 +39,64 @@ def test_fast_infer_batch(mock_fast_tts):
         results = mock_fast_tts.infer_batch(texts, ref_codes=[1], ref_text="ref")
         assert len(results) == 2
         mock_ph_batch.assert_called_once()
+
+def test_fast_infer_stability_mode_updates_generation_config(mock_fast_tts):
+    with patch("vieneu_utils.phonemize_text.phonemize_with_dict", return_value="phonemes"), \
+         patch.object(mock_fast_tts, '_decode', return_value=np.zeros(1000)):
+        _ = mock_fast_tts.infer("Xin chÃ o", ref_codes=[1, 2], ref_text="ref", stability_mode="locked_safe")
+        assert mock_fast_tts.gen_config.temperature == pytest.approx(0.28)
+        assert mock_fast_tts.gen_config.top_k == 8
+        assert mock_fast_tts.gen_config.top_p == pytest.approx(0.70)
+        assert mock_fast_tts.gen_config.repetition_penalty == pytest.approx(1.06)
+        assert mock_fast_tts.gen_config.do_sample is True
+
+def test_fast_infer_segments_groups_three_voice_routes(mock_fast_tts):
+    narrator_voice = {"codes": [1], "text": "narrator"}
+    female_voice = {"codes": [2], "text": "female"}
+    male_voice = {"codes": [3], "text": "male"}
+    segments = [
+        {"segment_type": "narration", "text": "Má»™t ngÃ y mÆ°a."},
+        {"segment_type": "narration", "text": "Khung cáº£nh yÃªn áº¯ng."},
+        {"segment_type": "dialogue", "text": "Em Ä‘áº¿n Ä‘Ã¢y.", "performed_voice_persona": {"gender": "female"}},
+        {"segment_type": "dialogue", "text": "Anh biáº¿t rá»“i.", "performed_voice_persona": {"gender": "male"}},
+    ]
+
+    with patch.object(
+        mock_fast_tts,
+        "infer",
+        side_effect=[np.zeros(90), np.zeros(60), np.zeros(120)],
+    ) as mock_infer:
+        result = mock_fast_tts.infer_segments(
+            segments,
+            narrator_voice=narrator_voice,
+            female_voice=female_voice,
+            male_voice=male_voice,
+            apply_watermark=False,
+            return_metadata=True,
+        )
+
+    assert len(result["wavs"]) == 4
+    assert [group["route"] for group in result["groups"]] == ["narration", "dialogue_female", "dialogue_male"]
+    assert result["groups"][0]["segment_indexes"] == [0, 1]
+    assert result["groups"][1]["segment_indexes"] == [2]
+    assert result["groups"][2]["segment_indexes"] == [3]
+    assert mock_infer.call_count == 3
+    assert mock_infer.call_args_list[0].kwargs["voice"] == narrator_voice
+    assert mock_infer.call_args_list[0].kwargs["emotion_tag"] is None
+    assert mock_infer.call_args_list[0].kwargs["stability_mode"] == "locked_safe"
+    assert mock_infer.call_args_list[1].kwargs["voice"] == female_voice
+    assert mock_infer.call_args_list[1].kwargs["emotion_tag"] == "<|emotion_0|>"
+    assert mock_infer.call_args_list[1].kwargs["stability_mode"] == "stable"
+    assert mock_infer.call_args_list[2].kwargs["voice"] == male_voice
+    assert mock_infer.call_args_list[2].kwargs["emotion_tag"] == "<|emotion_0|>"
+    assert mock_infer.call_args_list[2].kwargs["stability_mode"] == "stable"
+
+def test_fast_voice_aliases_use_sample_presets(mock_fast_tts):
+    mock_fast_tts._preset_voices = {
+        "Doan": {"codes": [1], "text": "doan"},
+        "Ly": {"codes": [2], "text": "ly"},
+        "Vinh": {"codes": [3], "text": "vinh"},
+    }
+    assert mock_fast_tts._normalize_preset_voice_name("doan") == "Doan"
+    assert mock_fast_tts._normalize_preset_voice_name("sample_female") == "Ly"
+    assert mock_fast_tts._normalize_preset_voice_name("sample_male") == "Vinh"
