@@ -1,4 +1,6 @@
 Bundle purpose: Kaggle fallback for private repo usage.
 Source branch snapshot: feature/my-feature
-Expected repo root after unzip: /kaggle/working/VieNeu-TTS
+Preferred zip file: vieneutts_myfeature_kaggle_bundle.zip
+Preferred top-level folder after Kaggle auto-extract: VIENEU_MYFEATURE_REPO
+Expected working repo after notebook copy/extract: /kaggle/working/VieNeu-TTS
 Primary native segment mode: segments_native_infer
